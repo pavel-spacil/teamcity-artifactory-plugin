@@ -48,6 +48,8 @@
     <bean id="mavenRunTypeExtension" class="org.jfrog.teamcity.server.runner.maven.MavenRunTypeExtension"
           depends-on="deployableArtifactoryServers"/>
 
+    <bean class="org.jfrog.teamcity.server.util.BuildNameProvider" />
+
     <bean id="artifactoryBuildStartContextProcessor"
           class="org.jfrog.teamcity.server.runner.ArtifactoryBuildStartContextProcessor"/>
 

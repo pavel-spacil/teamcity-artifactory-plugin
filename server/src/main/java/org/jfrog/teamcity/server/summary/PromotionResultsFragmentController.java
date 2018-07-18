@@ -45,6 +45,7 @@ import org.jfrog.teamcity.api.credentials.CredentialsHelper;
 import org.jfrog.teamcity.common.PromotionTargetStatusType;
 import org.jfrog.teamcity.common.RunnerParameterKeys;
 import org.jfrog.teamcity.server.global.DeployableArtifactoryServers;
+import org.jfrog.teamcity.server.util.BuildNameProvider;
 import org.jfrog.teamcity.server.util.TeamcityServerBuildInfoLog;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -63,11 +64,14 @@ public class PromotionResultsFragmentController extends BaseFormXmlController {
 
     private SBuildServer buildServer;
     private DeployableArtifactoryServers deployableServers;
+    private BuildNameProvider buildNameProvider;
 
     public PromotionResultsFragmentController(SBuildServer buildServer,
-                                              DeployableArtifactoryServers deployableServers) {
+                                              DeployableArtifactoryServers deployableServers,
+                                              BuildNameProvider buildNameProvider) {
         this.buildServer = buildServer;
         this.deployableServers = deployableServers;
+        this.buildNameProvider = buildNameProvider;
     }
 
     @Override
@@ -155,7 +159,7 @@ public class PromotionResultsFragmentController extends BaseFormXmlController {
 
             Loggers.SERVER.info("Performing dry run promotion (no changes are made during dry run) ...");
 
-            HttpResponse dryResponse = client.stageBuild(build.getFullName(), build.getBuildNumber(),
+            HttpResponse dryResponse = client.stageBuild(buildNameProvider.getFullBuildName(build), build.getBuildNumber(),
                     promotionBuilder.build());
 
             if (!checkSuccess(dryResponse, true)) {
@@ -165,7 +169,7 @@ public class PromotionResultsFragmentController extends BaseFormXmlController {
             }
 
             Loggers.SERVER.info("Dry run finished successfully.\nPerforming promotion ...");
-            HttpResponse wetResponse = client.stageBuild(build.getFullName(), build.getBuildNumber(),
+            HttpResponse wetResponse = client.stageBuild(buildNameProvider.getFullBuildName(build), build.getBuildNumber(),
                     promotionBuilder.dryRun(false).build());
 
             if (!checkSuccess(wetResponse, false)) {

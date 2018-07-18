@@ -23,6 +23,7 @@ import jetbrains.buildServer.log.Loggers;
 import jetbrains.buildServer.serverSide.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jfrog.build.api.BuildInfoConfigProperties;
@@ -37,6 +38,7 @@ import org.jfrog.teamcity.common.ReleaseManagementParameterKeys;
 import org.jfrog.teamcity.common.RunTypeUtils;
 import org.jfrog.teamcity.common.RunnerParameterKeys;
 import org.jfrog.teamcity.server.global.DeployableArtifactoryServers;
+import org.jfrog.teamcity.server.util.BuildNameProvider;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.jfrog.build.extractor.clientConfiguration.client.ArtifactoryBuildInfoClient.BUILD_BROWSE_URL;
 import static org.jfrog.teamcity.common.ConstantValues.*;
 
 /**
@@ -56,18 +59,22 @@ public class ArtifactoryBuildStartContextProcessor implements BuildStartContextP
     private SBuildServer buildServer;
     private DeployableArtifactoryServers deployableServers;
     private ProjectManager projectManager;
+    private BuildNameProvider buildNameProvider;
 
     public ArtifactoryBuildStartContextProcessor(@NotNull final SBuildServer buildServer,
                                                  @NotNull final DeployableArtifactoryServers deployableServers,
-                                                 @NotNull final ProjectManager projectManager) {
+                                                 @NotNull final ProjectManager projectManager,
+                                                 @NotNull final BuildNameProvider buildNameProvider) {
         this.buildServer = buildServer;
         this.deployableServers = deployableServers;
         this.projectManager = projectManager;
+        this.buildNameProvider = buildNameProvider;
     }
 
     public void updateParameters(@NotNull BuildStartContext context) {
         SRunningBuild build = context.getBuild();
         Collection<? extends SRunnerContext> runnerContexts = context.getRunnerContexts();
+        boolean linkStored = false;
         for (SRunnerContext runnerContext : runnerContexts) {
             Map<String, String> runParameters = runnerContext.getParameters();
 
@@ -111,7 +118,8 @@ public class ArtifactoryBuildStartContextProcessor implements BuildStartContextP
             runnerContext.addRunnerParameter(RunnerParameterKeys.TIMEOUT, Integer.toString(serverConfig.getTimeout()));
 
             //TODO: [by yl] See how we can get a nicer build name...
-            runnerContext.addRunnerParameter(BUILD_NAME, build.getFullName());
+            final String buildName = buildNameProvider.getFullBuildName(build);
+            runnerContext.addRunnerParameter(BUILD_NAME, buildName);
 
             runnerContext.addRunnerParameter(BUILD_NUMBER, build.getBuildNumber());
 
@@ -137,15 +145,16 @@ public class ArtifactoryBuildStartContextProcessor implements BuildStartContextP
              * results page
              */
             SBuildType buildType = build.getBuildType();
-            if (buildType != null && shouldStoreBuildInRunHistory(runParameters)) {
-                String runnerCustomStorageId = Long.toString(build.getBuildId()) + "#" + runnerContext.getId();
+            if (!linkStored && buildType != null && shouldStoreBuildInRunHistory(runParameters)) {
+                String runnerCustomStorageId = Long.toString(build.getBuildId()) + "#" + PROP_FULL_BUILD_LINK;
                 StringBuilder artifactoryUrlBuilder = new StringBuilder().append(serverConfigUrl);
-                if (!serverConfigUrl.endsWith("/")) {
-                    artifactoryUrlBuilder.append("/");
+                if (serverConfigUrl.endsWith("/")) {
+                    artifactoryUrlBuilder.deleteCharAt(artifactoryUrlBuilder.length() - 1);
                 }
-                String artifactoryUrl = artifactoryUrlBuilder.append("webapp/builds/").toString();
+                String artifactoryUrl = artifactoryUrlBuilder.append(BUILD_BROWSE_URL).append("/").append(buildName).toString();
                 CustomDataStorage runHistory = buildType.getCustomDataStorage(CustomDataStorageKeys.RUN_HISTORY);
-                runHistory.putValue(runnerCustomStorageId, artifactoryUrl);
+                runHistory.putValue(runnerCustomStorageId, StringEscapeUtils.escapeJava(artifactoryUrl));
+                linkStored = true;
             }
 
             if (RunTypeUtils.isMavenRunType(runType)) {
@@ -183,7 +192,7 @@ public class ArtifactoryBuildStartContextProcessor implements BuildStartContextP
         if (StringUtils.isNotBlank(triggeredByBuildTypeId)) {
             SBuildType triggeredByBuildType = projectManager.findBuildTypeById(triggeredByBuildTypeId);
             if (triggeredByBuildType != null) {
-                runnerContext.addRunnerParameter(PROP_PARENT_NAME, triggeredByBuildType.getFullName());
+                runnerContext.addRunnerParameter(PROP_PARENT_NAME, buildNameProvider.getFullBuildName(triggeredByBuildType));
             }
         }
 

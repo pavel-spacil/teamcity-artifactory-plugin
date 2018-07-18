@@ -82,6 +82,11 @@ public class ConstantValues {
         ConstantValues.pluginVersion = pluginVersion;
     }
 
+    public final static String PROP_FULL_BUILD_LINK = "buildLink";
+
+    public static final String BUILD_NAME_SEPARATOR = ":";
+    public static final String BUILD_NAME_SEPARATOR_LEGACY = " :: ";
+
     /**
      * Git plugin configuration constants (taken from jetbrains.buildServer.buildTriggers.vcs.git.Constants)
      */

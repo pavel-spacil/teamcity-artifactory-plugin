@@ -29,6 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jfrog.teamcity.common.ConstantValues;
 import org.jfrog.teamcity.common.ReleaseManagementParameterKeys;
 import org.jfrog.teamcity.server.global.DeployableArtifactoryServers;
+import org.jfrog.teamcity.server.util.BuildNameProvider;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
@@ -41,14 +42,15 @@ public class PromotionResultsFragmentExtension extends SimplePageExtension {
     private SBuildServer buildServer;
 
     public PromotionResultsFragmentExtension(@NotNull final PagePlaces pagePlaces,
-            @NotNull final WebControllerManager controllerManager,
-            @NotNull final DeployableArtifactoryServers deployableServers,
-            @NotNull final SBuildServer buildServer) {
+                                             @NotNull final WebControllerManager controllerManager,
+                                             @NotNull final DeployableArtifactoryServers deployableServers,
+                                             @NotNull final SBuildServer buildServer,
+                                             @NotNull final BuildNameProvider buildNameProvider) {
         super(pagePlaces, PlaceId.BUILD_RESULTS_FRAGMENT, ConstantValues.NAME,
                 "promotionResultsFragmentExtension.jsp");
         this.buildServer = buildServer;
         controllerManager.registerController("/artifactory/promotion/promotionFragment.html",
-                new PromotionResultsFragmentController(buildServer, deployableServers));
+                new PromotionResultsFragmentController(buildServer, deployableServers, buildNameProvider));
 
         register();
     }
